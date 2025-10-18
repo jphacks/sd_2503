@@ -210,13 +210,26 @@
     const characterCount = transcript.length;
     const speakingRate = Math.round((characterCount / speakingTimeSec) * 60);
 
+    // 文字起こしの校正
+    let correctedTranscript = transcript;
+    // 1. フィラーワードを削除
+    filterWords.forEach(word => {
+      correctedTranscript = correctedTranscript.replace(new RegExp(word, "g"), "");
+    });
+    // 2. 文頭・文末の空白を削除し、文末に句読点を追加（既にあれば追加しない）
+    correctedTranscript = correctedTranscript.trim();
+    if (correctedTranscript && !/[。？！]$/.test(correctedTranscript)) {
+      correctedTranscript += "。";
+    }
+
     analysis = {
       gaze: {
         lookingCenterPercentage,
         isGood: lookingCenterPercentage >= 80 // 80%以上でgood
       },
       fillerWords: foundFillerWords,
-      speakingRate
+      speakingRate,
+      correctedTranscript
     };
 
     recording = false;
@@ -423,6 +436,13 @@
 
         <section class="bg-white rounded-lg shadow-md p-6">
           <h2 class="text-2xl font-semibold mb-4">フィードバック</h2>
+          {#if analysis.correctedTranscript}
+            <div class="mb-4 p-4 bg-gray-100 rounded">
+              <h3 class="font-bold mb-2">校正例</h3>
+              <p class="text-lg">{analysis.correctedTranscript}</p>
+              <p class="text-sm text-gray-600 mt-2">（口癖などを除き、句読点を追加した文章の例です）</p>
+            </div>
+          {/if}
           {#if analysis.speakingRate >= GOOD_MIN && analysis.speakingRate <= GOOD_MAX}
             <p class="text-lg">素晴らしい速さです！このペースを維持しましょう。</p>
           {:else if analysis.speakingRate < GOOD_MIN}
