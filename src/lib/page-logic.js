@@ -373,6 +373,61 @@ export function createInterviewStore() {
     return "fast";
   }
 
+  /**
+   * PREP法に基づいてテキストを整理する
+   * @param {string} text 整理対象のテキスト
+   * @returns {string} 整理後のテキスト
+   */
+  function organizeWithPREP(text) {
+    if (!text || text.trim() === "") {
+      return "";
+    }
+
+    const sentences = text.split(/([。？！])/g).reduce((acc, part, i) => {
+      if (i % 2 === 0) {
+        if (part.trim()) acc.push(part.trim());
+      } else {
+        if (acc.length > 0) acc[acc.length - 1] += part;
+      }
+      return acc;
+    }, []);
+
+    if (sentences.length === 0) return "";
+
+    const prep = {
+      point: [],
+      reason: [],
+      example: [],
+      conclusion: [],
+      unclassified: []
+    };
+
+    const keywords = {
+      reason: /^(なぜなら|理由は|その背景には|と申しますのも|というのも)/,
+      example: /^(例えば|具体的には|私の経験では|実際に|特に)/,
+      conclusion: /^(したがって|以上のことから|このように|まとめると|最後に|その結果)/,
+      point: /^(結論から言うと|まず結論として|私の考えは)/
+    };
+
+    let currentSection = 'point'; // 最初の文は結論と仮定
+
+    sentences.forEach((sentence, index) => {
+      if (index === 0 && !Object.values(keywords).some(re => re.test(sentence))) {
+        prep.point.push(sentence);
+        return;
+      }
+
+      if (keywords.point.test(sentence)) { currentSection = 'point'; }
+      else if (keywords.reason.test(sentence)) { currentSection = 'reason'; }
+      else if (keywords.example.test(sentence)) { currentSection = 'example'; }
+      else if (keywords.conclusion.test(sentence)) { currentSection = 'conclusion'; }
+
+      prep[currentSection] ? prep[currentSection].push(sentence) : prep.unclassified.push(sentence);
+    });
+
+    return [prep.point, prep.reason, prep.example, prep.conclusion, prep.unclassified].flat().join(' ').trim();
+  }
+
   return {
     // Stores
     recording,
@@ -392,6 +447,7 @@ export function createInterviewStore() {
     addQuestion,
     deleteQuestion,
     destroy,
-    speakingRateLabel
+    speakingRateLabel,
+    organizeWithPREP
   };
 }
