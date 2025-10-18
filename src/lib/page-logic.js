@@ -107,6 +107,7 @@ export function createInterviewStore() {
 
     // --- 校正APIを呼び出す処理 ---
     let correctedTranscript = currentTranscript; // フォールバック用に元のテキストを保持
+    let grammaticalErrors = [];
 
     if (currentTranscript) {
       try {
@@ -142,6 +143,14 @@ export function createInterviewStore() {
             corrected = corrected.substring(0, start) + suggestionText + corrected.substring(start + len);
           }
           correctedTranscript = corrected;
+
+          // 文法エラーのフィードバックを作成
+          for (const suggestion of data.result.suggestions) {
+            if (suggestion.rule === 'ら抜き') {
+              grammaticalErrors.push(`「${suggestion.word}」は「ら抜き言葉」です。正しくは「${suggestion.suggestion}」です。`);
+            }
+            // 他のルールに関するフィードバックもここに追加可能
+          }
         }
       } catch (error) {
         console.error("校正APIの呼び出しに失敗しました。フォールバック処理を実行します:", error);
@@ -213,6 +222,7 @@ export function createInterviewStore() {
       volumeData,
       correctedTranscript,
       pitchData,
+      grammaticalErrors, // ここで追加
       radarChartData: {
         labels: ['抑揚', '声量', '適切な間', 'スピードの緩急'],
         datasets: [{
