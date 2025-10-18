@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { filterWords } from "$lib/filterwords.js";
 
   let recording = false;
   let analysis = null;
@@ -71,10 +72,15 @@
       // TODO: audioBlobをサーバーに送信して分析する
       console.log("Audio Blob created:", audioBlob);
 
+      const foundFillerWords = filterWords.filter(word => {
+        const occurrences = (transcript.match(new RegExp(word, 'g')) || []).length;
+        return occurrences >= 3;
+      });
+
       // Simulate analysis after a delay
       setTimeout(() => {
         analysis = {
-          fillerWords: ["えーと", "あのー", "えーと"],
+          fillerWords: foundFillerWords,
           speakingRate: 120,
           silenceDuration: 5.2,
         };
@@ -121,11 +127,15 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-gray-100 p-4 rounded">
           <h3 class="font-bold mb-2">口癖</h3>
-          <ul class="list-disc list-inside">
-            {#each analysis.fillerWords as word}
-              <li>{word}</li>
-            {/each}
-          </ul>
+          {#if analysis.fillerWords.length > 0}
+            <ul class="list-disc list-inside">
+              {#each analysis.fillerWords as word}
+                <li>{word}</li>
+              {/each}
+            </ul>
+          {:else}
+            <p>口癖は見つかりませんでした。</p>
+          {/if}
         </div>
         <div class="bg-gray-100 p-4 rounded">
           <h3 class="font-bold mb-2">話す速さ</h3>
