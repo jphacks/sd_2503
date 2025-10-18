@@ -8,7 +8,7 @@
     recording,
     analysis,
     transcript,
-    audioURL,
+    videoURL, // audioURLから変更
     currentQuestion,
     questionInProgress,
     questions,
@@ -47,18 +47,17 @@
   <div class="mt-8 flex flex-col md:flex-row gap-8">
     <!-- メインコンテンツ (左側) -->
     <div class="flex-grow flex flex-col gap-8">
-      {#if $currentQuestion}
-        <section class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-2xl font-semibold mb-4">質問</h2>
-          <p class="text-lg text-gray-800">{$currentQuestion}</p>
-        </section>
-      {/if}
-
       <!-- Video Feed -->
-      <section class="bg-white rounded-lg shadow-md p-6" hidden={!$analysis}>
-        <h2 class="text-2xl font-semibold mb-4">カメラ映像</h2>
-        <!-- svelte-ignore a11y-media-has-caption -->
-        <video bind:this={videoElement} autoplay muted playsinline class="w-full h-auto rounded-md bg-gray-900" />
+      <section class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-semibold mb-4">{$videoURL && !$recording ? '録画の再生' : 'カメラ映像'}</h2>
+        
+        {#if $videoURL && !$recording}
+          <!-- svelte-ignore a11y-media-has-caption -->
+          <video src={$videoURL} controls class="w-full h-auto rounded-md bg-gray-900" />
+        {:else}
+          <!-- svelte-ignore a11y-media-has-caption -->
+          <video bind:this={videoElement} autoplay muted playsinline class="w-full h-auto rounded-md bg-gray-900" />
+        {/if}
       </section>
 
       <!-- Controls -->
@@ -82,21 +81,26 @@
               disabled={!$currentQuestion && !$questionInProgress}
               aria-pressed={$recording}
             >
-              {$recording ? "録音停止" : "回答を録音"}
+              {$recording ? "録画停止" : "回答を録画"}
             </button>
           </div>
 
           <div class="flex-grow">
-            {#if $audioURL && !$recording}
-              <audio controls src={$audioURL} class="w-full" aria-label="録音の再生"></audio>
-            {/if}
+            <!-- 録画再生エリアはカメラ映像のセクションに統合された -->
           </div>
         </div>
 
         {#if $recording}
-          <p class="mt-4 text-red-500 font-bold animate-pulse">録音中...</p>
+          <p class="mt-4 text-red-500 font-bold animate-pulse">録画中...</p>
         {/if}
       </section>
+
+      {#if $currentQuestion}
+        <section class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-2xl font-semibold mb-4">質問</h2>
+          <p class="text-lg text-gray-800">{$currentQuestion}</p>
+        </section>
+      {/if}
 
       <!-- 文字起こし -->
       {#if $transcript}
@@ -125,20 +129,6 @@
               {/if}
             </div>
 
-            <div class="bg-gray-100 p-4 rounded">
-              <h3 class="font-bold mb-2 flex items-center">
-                <span>視線</span>
-                 {#if $analysis.gaze.isGood}
-                  <span class="ml-2 text-sm font-bold text-white bg-green-500 px-2 py-1 rounded-full">good</span>
-                {:else}
-                  <span class="ml-2 text-sm font-bold text-white bg-yellow-500 px-2 py-1 rounded-full">check</span>
-                {/if}
-              </h3>
-              <p class="text-lg">
-                {$analysis.gaze.lookingCenterPercentage}%
-                <span class="text-sm text-gray-600"> (正面)</span>
-              </p>
-            </div>
 
             <div class="bg-gray-100 p-4 rounded">
               <h3 class="font-bold mb-2 flex items-center">
@@ -164,16 +154,6 @@
             <p class="text-lg">もう少しハキハキと、少しだけ速く話すことを意識すると、より自信があるように聞こえます。</p>
           {:else}
             <p class="text-lg">少し早口のようです。相手が聞き取りやすいように、もう少しゆっくり話すことを意識しましょう。</p>
-          {/if}
-          {#if $analysis.gaze}
-             <div class="mt-4">
-               <h3 class="font-bold">視線について</h3>
-               {#if $analysis.gaze.isGood}
-                 <p class="text-lg">素晴らしいです！しっかりと正面を向いて話せています。自信がある印象を与えられます。</p>
-               {:else}
-                 <p class="text-lg">もう少しカメラ（相手の目）を見て話すことを意識しましょう。視線が泳ぐと、自信がなさそうに見えたり、集中していない印象を与えたりする可能性があります。</p>
-               {/if}
-             </div>
           {/if}
         </section>
       {/if}

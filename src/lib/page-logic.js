@@ -11,7 +11,7 @@ export function createInterviewStore() {
   const recording = writable(false);
   const analysis = writable(null);
   const transcript = writable("");
-  const audioURL = writable("");
+  const videoURL = writable("");
   const currentQuestion = writable("");
   const questionInProgress = writable(false);
   const questions = writable([
@@ -27,18 +27,14 @@ export function createInterviewStore() {
     "あなたのキャリアプランを教えてください。"
   ]);
   const editingQuestions = writable(false);
-  const isFaceApiReady = writable(false);
 
   // --- 内部状態 (このモジュール内でのみ使用) ---
   let mediaRecorder = null;
-  let audioChunks = [];
+  let recordedChunks = [];
   let stream = null;
   let recognition = null;
-  let audioBlob = null;
+  let recordedBlob = null;
   let recordingStartTime = 0;
-  let videoElement = null;
-  let gazeAnalysisInterval = null;
-  let gazeData = { lookingCenter: 0, total: 0 };
   let localQuestions = [];
   let localCurrentQuestion = '';
 
@@ -46,23 +42,6 @@ export function createInterviewStore() {
   currentQuestion.subscribe(value => { localCurrentQuestion = value; });
 
   // --- 内部ロジック ---
-  async function loadFaceApi() {
-    if (typeof faceapi === "undefined") {
-      console.warn("face-api.jsがロードされていません。");
-      return;
-    }
-    try {
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
-        faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models')
-      ]);
-      isFaceApiReady.set(true);
-      console.log("FaceAPIのモデルをロードしました。");
-    } catch (error) {
-      console.error("FaceAPIモデルのロードに失敗しました:", error);
-    }
-  }
-
   function stopRecognitionIfNeeded() {
     if (recognition) {
       try { recognition.stop(); } catch (e) { /* ignore */ }
@@ -71,8 +50,8 @@ export function createInterviewStore() {
 
   function handleRecordingStop() {
     const totalRecordingTime = Date.now() - recordingStartTime;
-    audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-    audioURL.set(URL.createObjectURL(audioBlob));
+    recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+    videoURL.set(URL.createObjectURL(recordedBlob));
 
     let currentTranscript = '';
     transcript.subscribe(s => currentTranscript = s)(); // get current value
@@ -82,13 +61,11 @@ export function createInterviewStore() {
       .filter(x => x.occurrences >= FILLER_THRESHOLD)
       .map(x => x.word);
 
-    const lookingCenterPercentage = gazeData.total > 0 ? Math.round((gazeData.lookingCenter / gazeData.total) * 100) : 0;
     const speakingTimeSec = Math.max(1, Math.round(totalRecordingTime / 1000));
     const characterCount = currentTranscript.length;
     const speakingRate = Math.round((characterCount / speakingTimeSec) * 60);
 
     analysis.set({
-      gaze: { lookingCenterPercentage, isGood: lookingCenterPercentage >= 80 },
       fillerWords: foundFillerWords,
       speakingRate
     });
@@ -97,40 +74,11 @@ export function createInterviewStore() {
     questionInProgress.set(false);
   }
 
-  function startGazeAnalysis() {
-    let ready = false;
-    isFaceApiReady.subscribe(v => ready = v)();
-    if (!ready || !videoElement) return;
-
-    gazeData = { lookingCenter: 0, total: 0 };
-    gazeAnalysisInterval = setInterval(async () => {
-      const detections = await faceapi.detectAllFaces(videoElement, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true);
-      if (detections && detections.length > 0) {
-        const landmarks = detections[0].landmarks;
-        const nose = landmarks.getNose();
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
-        const isLookingCenter = nose[0].x > leftEye[0].x && nose[0].x < rightEye[3].x;
-        gazeData.total++;
-        if (isLookingCenter) gazeData.lookingCenter++;
-      }
-    }, 500);
-  }
-
-  function stopGazeAnalysis() {
-    if (gazeAnalysisInterval) {
-      clearInterval(gazeAnalysisInterval);
-      gazeAnalysisInterval = null;
-    }
-  }
-
   // --- 公開メソッド (コンポーネントから呼び出す) ---
-  async function init(videoEl) {
-    videoElement = videoEl;
+  async function init(videoElement) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       if (videoElement) videoElement.srcObject = stream;
-      loadFaceApi();
     } catch (err) {
       console.error("メディアデバイスへのアクセスが拒否されました:", err);
       alert("カメラとマイクへのアクセスを許可してください。");
@@ -164,30 +112,28 @@ export function createInterviewStore() {
 
   function startRecording() {
     if (!stream) {
-      alert("マイクが利用できません。");
+      alert("マイクまたは画面共有が利用できません。");
       return;
     }
-    if (!mediaRecorder) {
-      try {
-        mediaRecorder = new MediaRecorder(stream);
-      } catch (err) {
-        console.error("MediaRecorderの作成に失敗:", err);
-        alert("録音を開始できませんでした。");
-        return;
-      }
+    
+    try {
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    } catch (err) {
+      console.error("MediaRecorderの作成に失敗:", err);
+      alert("録画を開始できませんでした。");
+      return;
     }
 
     recording.set(true);
     analysis.set(null);
     transcript.set("");
-    audioBlob = null;
-    audioURL.set("");
-    audioChunks = [];
+    recordedBlob = null;
+    videoURL.set("");
+    recordedChunks = [];
     recordingStartTime = Date.now();
     questionInProgress.set(true);
-    startGazeAnalysis();
 
-    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
     mediaRecorder.onstop = handleRecordingStop;
     mediaRecorder.start();
 
@@ -203,16 +149,15 @@ export function createInterviewStore() {
       try { mediaRecorder.stop(); } catch (e) { console.warn("mediaRecorder.stop() error:", e); }
     }
     stopRecognitionIfNeeded();
-    stopGazeAnalysis();
   }
 
   function nextQuestion() {
     recording.set(false);
     analysis.set(null);
     transcript.set("");
-    audioBlob = null;
-    audioURL.set("");
-    audioChunks = [];
+    recordedBlob = null;
+    videoURL.set("");
+    recordedChunks = [];
     questionInProgress.set(true);
 
     if (localQuestions.length === 0) {
@@ -260,12 +205,11 @@ export function createInterviewStore() {
     recording,
     analysis,
     transcript,
-    audioURL,
+    videoURL,
     currentQuestion,
     questionInProgress,
     questions,
     editingQuestions,
-    isFaceApiReady,
 
     // Methods
     init,
