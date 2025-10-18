@@ -106,44 +106,55 @@ export function createInterviewStore() {
     const speakingRate = Math.round((characterCount / speakingTimeSec) * 60);
 
     // --- 校正APIを呼び出す処理 ---
-    const yahooAppId = import.meta.env.VITE_YAHOO_APP_ID;
     let correctedTranscript = currentTranscript; // フォールバック用に元のテキストを保持
+    let grammaticalErrors = [];
 
-    if (yahooAppId && currentTranscript) {
+    if (currentTranscript) {
       try {
-        const response = await fetch('https://jlp.yahooapis.jp/KouseiService/V2/kousei', {
+        const response = await fetch('/api/proofread', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': `Yahoo AppID: ${yahooAppId}`
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            id: '1',
-            jsonrpc: '2.0',
-            method: 'jlp.kouseiservice.v2.kousei',
-            params: { q: currentTranscript }
-          })
+          body: JSON.stringify({ sentence: currentTranscript })
         });
 
         if (!response.ok) {
-          throw new Error(`Yahoo! 校正APIエラー: ${response.statusText}`);
+          throw new Error(`校正APIエラー: ${response.statusText}`);
         }
 
         const data = await response.json();
-        if (data.result && data.result.suggestions) {
-          let parts = [];
-          let lastIndex = 0;
-          // start_posが小さい順にソートされていることを前提とする
-          for (const suggestion of data.result.suggestions) {
-            parts.push(currentTranscript.substring(lastIndex, suggestion.start_pos));
-            parts.push(suggestion.suggestion);
-            lastIndex = suggestion.start_pos + suggestion.length;
+        if (data.error) {
+          console.error("校正APIから返されたエラー:", data.error);
+          throw new Error(`校正APIからのエラー: ${JSON.stringify(data.error)}`);
+        }
+
+        if (data.result && data.result.suggestions && data.result.suggestions.length > 0) {
+          // オフセットの降順でソートして、後ろから置換していく
+          // これにより、文字列の長さが変わっても後続の置換箇所のオフセットがずれない
+          const sortedSuggestions = data.result.suggestions.sort((a, b) => parseInt(b.offset, 10) - parseInt(a.offset, 10));
+
+          let corrected = currentTranscript;
+          for (const suggestion of sortedSuggestions) {
+            const start = parseInt(suggestion.offset, 10);
+            const len = parseInt(suggestion.length, 10);
+            // suggestion.suggestion が空の場合もあるため、空文字列をデフォルト値とする
+            const suggestionText = suggestion.suggestion || '';
+            corrected = corrected.substring(0, start) + suggestionText + corrected.substring(start + len);
           }
-          parts.push(currentTranscript.substring(lastIndex));
-          correctedTranscript = parts.join('');
+          correctedTranscript = corrected;
+
+          // 文法エラーのフィードバックを作成
+          for (const suggestion of data.result.suggestions) {
+            if (suggestion.rule === 'ら抜き') {
+              grammaticalErrors.push(`「${suggestion.word}」は「ら抜き言葉」です。正しくは「${suggestion.suggestion}」です。`);
+            }
+            // 他のルールに関するフィードバックもここに追加可能
+          }
         }
       } catch (error) {
-        console.error("Yahoo! 校正APIの呼び出しに失敗しました。フォールバック処理を実行します:", error);
+        console.error("校正APIの呼び出しに失敗しました。フォールバック処理を実行します:", error);
+        // 既存のフォールバック処理を維持
         correctedTranscript = correctedTranscript.replace(new RegExp(filterWords.join('|'), "g"), "").trim();
         if (correctedTranscript && !/[。？！]$/.test(correctedTranscript)) correctedTranscript += "。";
       }
@@ -211,6 +222,7 @@ export function createInterviewStore() {
       volumeData,
       correctedTranscript,
       pitchData,
+      grammaticalErrors, // ここで追加
       radarChartData: {
         labels: ['抑揚', '声量', '適切な間', 'スピードの緩急'],
         datasets: [{

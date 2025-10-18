@@ -248,6 +248,18 @@
               <p class="text-sm text-gray-600 mt-2">（口癖などを除き、句読点を追加した文章の例です）</p>
             </div>
           {/if}
+
+          {#if $analysis.grammaticalErrors && $analysis.grammaticalErrors.length > 0}
+            <div class="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded">
+              <h3 class="font-bold mb-2">文法に関する指摘</h3>
+              <ul class="list-disc list-inside">
+                {#each $analysis.grammaticalErrors as error}
+                  <li>{error}</li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
+
           {#if rateLabel === 'good'}
             <p class="text-lg">素晴らしい速さです！このペースを維持しましょう。</p>
           {:else if rateLabel === 'slowly'}
