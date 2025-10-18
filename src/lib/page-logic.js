@@ -27,7 +27,6 @@ export function createInterviewStore() {
     "あなたのキャリアプランを教えてください。"
   ]);
   const editingQuestions = writable(false);
-  const isFaceApiReady = writable(false);
 
   // --- 内部状態 (このモジュール内でのみ使用) ---
   let mediaRecorder = null;
@@ -36,9 +35,6 @@ export function createInterviewStore() {
   let recognition = null;
   let recordedBlob = null;
   let recordingStartTime = 0;
-  let videoElement = null;
-  let gazeAnalysisInterval = null;
-  let gazeData = { lookingCenter: 0, total: 0 };
   let localQuestions = [];
   let localCurrentQuestion = '';
 
@@ -46,23 +42,6 @@ export function createInterviewStore() {
   currentQuestion.subscribe(value => { localCurrentQuestion = value; });
 
   // --- 内部ロジック ---
-  async function loadFaceApi() {
-    if (typeof faceapi === "undefined") {
-      console.warn("face-api.jsがロードされていません。");
-      return;
-    }
-    try {
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
-        faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models')
-      ]);
-      isFaceApiReady.set(true);
-      console.log("FaceAPIのモデルをロードしました。");
-    } catch (error) {
-      console.error("FaceAPIモデルのロードに失敗しました:", error);
-    }
-  }
-
   function stopRecognitionIfNeeded() {
     if (recognition) {
       try { recognition.stop(); } catch (e) { /* ignore */ }
@@ -82,13 +61,11 @@ export function createInterviewStore() {
       .filter(x => x.occurrences >= FILLER_THRESHOLD)
       .map(x => x.word);
 
-    const lookingCenterPercentage = gazeData.total > 0 ? Math.round((gazeData.lookingCenter / gazeData.total) * 100) : 0;
     const speakingTimeSec = Math.max(1, Math.round(totalRecordingTime / 1000));
     const characterCount = currentTranscript.length;
     const speakingRate = Math.round((characterCount / speakingTimeSec) * 60);
 
     analysis.set({
-      gaze: { lookingCenterPercentage, isGood: lookingCenterPercentage >= 80 },
       fillerWords: foundFillerWords,
       speakingRate
     });
@@ -97,40 +74,11 @@ export function createInterviewStore() {
     questionInProgress.set(false);
   }
 
-  function startGazeAnalysis() {
-    let ready = false;
-    isFaceApiReady.subscribe(v => ready = v)();
-    if (!ready || !videoElement) return;
-
-    gazeData = { lookingCenter: 0, total: 0 };
-    gazeAnalysisInterval = setInterval(async () => {
-      const detections = await faceapi.detectAllFaces(videoElement, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true);
-      if (detections && detections.length > 0) {
-        const landmarks = detections[0].landmarks;
-        const nose = landmarks.getNose();
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
-        const isLookingCenter = nose[0].x > leftEye[0].x && nose[0].x < rightEye[3].x;
-        gazeData.total++;
-        if (isLookingCenter) gazeData.lookingCenter++;
-      }
-    }, 500);
-  }
-
-  function stopGazeAnalysis() {
-    if (gazeAnalysisInterval) {
-      clearInterval(gazeAnalysisInterval);
-      gazeAnalysisInterval = null;
-    }
-  }
-
   // --- 公開メソッド (コンポーネントから呼び出す) ---
-  async function init(videoEl) {
-    videoElement = videoEl;
+  async function init(videoElement) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       if (videoElement) videoElement.srcObject = stream;
-      loadFaceApi();
     } catch (err) {
       console.error("メディアデバイスへのアクセスが拒否されました:", err);
       alert("カメラとマイクへのアクセスを許可してください。");
@@ -169,7 +117,6 @@ export function createInterviewStore() {
     }
     
     try {
-      // video/webm;codecs=vp8,opus のようにコーデックを明記するとより安定的
       mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
     } catch (err) {
       console.error("MediaRecorderの作成に失敗:", err);
@@ -185,7 +132,6 @@ export function createInterviewStore() {
     recordedChunks = [];
     recordingStartTime = Date.now();
     questionInProgress.set(true);
-    startGazeAnalysis();
 
     mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
     mediaRecorder.onstop = handleRecordingStop;
@@ -203,7 +149,6 @@ export function createInterviewStore() {
       try { mediaRecorder.stop(); } catch (e) { console.warn("mediaRecorder.stop() error:", e); }
     }
     stopRecognitionIfNeeded();
-    stopGazeAnalysis();
   }
 
   function nextQuestion() {
@@ -265,7 +210,6 @@ export function createInterviewStore() {
     questionInProgress,
     questions,
     editingQuestions,
-    isFaceApiReady,
 
     // Methods
     init,
