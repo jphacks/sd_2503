@@ -30,6 +30,7 @@
 
   onMount(() => {
     init(videoElement);
+    nextQuestion();
   });
 
   onDestroy(() => {
