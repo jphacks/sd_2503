@@ -140,10 +140,10 @@
         
         {#if $videoURL && !$recording}
           <!-- svelte-ignore a11y-media-has-caption -->
-          <video src={$videoURL} controls class="w-full h-auto rounded-md bg-gray-900" />
+          <video src={$videoURL} controls class="w-full h-auto rounded-md bg-gray-900"></video>
         {:else}
           <!-- svelte-ignore a11y-media-has-caption -->
-          <video bind:this={videoElement} autoplay muted playsinline class="w-full h-auto rounded-md bg-gray-900" />
+          <video bind:this={videoElement} autoplay muted playsinline class="w-full h-auto rounded-md bg-gray-900"></video>
         {/if}
       </section>
 
