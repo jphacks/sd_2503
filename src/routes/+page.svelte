@@ -8,6 +8,9 @@
   let stream;
   let recognition;
   let transcript = "";
+  let audioBlob = null;
+  let audioURL = "";
+  let recordingStartTime = 0;
 
   onMount(async () => {
     try {
@@ -56,6 +59,9 @@
     recording = true;
     analysis = null; // 前回の分析結果をクリア
     transcript = ""; // 前回の文字起こし結果をクリア
+    audioBlob = null;
+    audioURL = "";
+    recordingStartTime = Date.now(); // 録音開始時刻を記録
 
     audioChunks = [];
     mediaRecorder = new MediaRecorder(stream);
@@ -67,16 +73,23 @@
     });
 
     mediaRecorder.addEventListener("stop", () => {
-      const audioBlob = new Blob(audioChunks);
+      const totalRecordingTime = Date.now() - recordingStartTime; // 録音全体の時間 (ms)
+      audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      audioURL = URL.createObjectURL(audioBlob);
       // TODO: audioBlobをサーバーに送信して分析する
       console.log("Audio Blob created:", audioBlob);
 
       // Simulate analysis after a delay
       setTimeout(() => {
+        const speakingTimeSec = totalRecordingTime / 1000;
+        const characterCount = transcript.length;
+        // 0除算を避ける
+        const speakingRate =
+          speakingTimeSec > 0 ? Math.round((characterCount / speakingTimeSec) * 60) : 0;
+
         analysis = {
-          fillerWords: ["えーと", "あのー", "えーと"],
-          speakingRate: 120,
-          silenceDuration: 5.2,
+          fillerWords: (transcript.match(/えーと|あのー/g) || []),
+          speakingRate: speakingRate,
         };
         recording = false; // 処理完了後に録音状態をfalseにする
       }, 1000); // 停止後すぐに結果を表示するため遅延を短くする
@@ -99,10 +112,15 @@
   <h1 class="text-3xl font-bold text-center">面接練習WEBアプリ</h1>
 
   <section class="bg-white rounded-lg shadow-md p-6">
-    <h2 class="text-2xl font-semibold mb-4">録音</h2>
-    <button on:click={recording ? stopRecording : startRecording} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
-      {recording ? "録音停止" : "録音開始"}
-    </button>
+    <h2 class="text-2xl font-semibold mb-4">録音と再生</h2>
+    <div class="flex items-center gap-4">
+      <button on:click={recording ? stopRecording : startRecording} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors flex-shrink-0">
+        {recording ? "録音停止" : "録音開始"}
+      </button>
+      {#if audioURL && !recording}
+        <audio controls src={audioURL} class="w-full"></audio>
+      {/if}
+    </div>
     {#if recording}
       <p class="mt-4 text-red-500 font-bold animate-pulse">録音中...</p>
     {/if}
@@ -118,7 +136,7 @@
   {#if analysis}
     <section class="bg-white rounded-lg shadow-md p-6">
       <h2 class="text-2xl font-semibold mb-4">分析結果</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-gray-100 p-4 rounded">
           <h3 class="font-bold mb-2">口癖</h3>
           <ul class="list-disc list-inside">
@@ -128,19 +146,30 @@
           </ul>
         </div>
         <div class="bg-gray-100 p-4 rounded">
-          <h3 class="font-bold mb-2">話す速さ</h3>
-          <p>{analysis.speakingRate} words/min</p>
-        </div>
-        <div class="bg-gray-100 p-4 rounded">
-          <h3 class="font-bold mb-2">沈黙の時間</h3>
-          <p>{analysis.silenceDuration}s</p>
+          <h3 class="font-bold mb-2 flex items-center">
+            <span>話す速さ</span>
+            {#if analysis.speakingRate >= 280 && analysis.speakingRate <= 320}
+              <span class="ml-2 text-sm font-bold text-white bg-green-500 px-2 py-1 rounded-full">good</span>
+            {:else if analysis.speakingRate < 280}
+              <span class="ml-2 text-sm font-bold text-white bg-yellow-500 px-2 py-1 rounded-full">slowly</span>
+            {:else}
+              <span class="ml-2 text-sm font-bold text-white bg-red-500 px-2 py-1 rounded-full">fast</span>
+            {/if}
+          </h3>
+          <p>{analysis.speakingRate} 文字/分</p>
         </div>
       </div>
     </section>
 
     <section class="bg-white rounded-lg shadow-md p-6">
       <h2 class="text-2xl font-semibold mb-4">フィードバック</h2>
-      <p class="text-lg">もう少しゆっくり話すことを意識しましょう。</p>
+      {#if analysis.speakingRate >= 280 && analysis.speakingRate <= 320}
+        <p class="text-lg">素晴らしい速さです！このペースを維持しましょう。</p>
+      {:else if analysis.speakingRate < 280}
+        <p class="text-lg">もう少しハキハキと、少しだけ速く話すことを意識すると、より自信があるように聞こえます。</p>
+      {:else}
+        <p class="text-lg">少し早口のようです。相手が聞き取りやすいように、もう少しゆっくり話すことを意識しましょう。</p>
+      {/if}
     </section>
   {/if}
 </main>
