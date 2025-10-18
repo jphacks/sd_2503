@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy, tick } from "svelte";
   import { createInterviewStore } from "$lib/page-logic.js";
+  import PrepOrganizer from "../lib/PrepOrganizer.svelte";
 
   const store = createInterviewStore();
   const {
@@ -271,9 +272,13 @@
     </div>
 
     <!-- サイドバー (右側) -->
-    <div class="md:w-96 flex-shrink-0">
+    <div class="md:w-96 flex-shrink-0 flex flex-col gap-8">
+      <!-- PREP法 構成チェッカー -->
+      <section class="bg-white rounded-lg shadow-md">
+        <PrepOrganizer />
+      </section>
       <!-- 質問リスト編集 -->
-      <section class="bg-white rounded-lg shadow-md p-6 sticky top-8">
+      <section class="bg-white rounded-lg shadow-md p-6">
         <h2 class="text-2xl font-semibold mb-4">質問リストの管理</h2>
 
         <div class="flex items-center gap-4">
