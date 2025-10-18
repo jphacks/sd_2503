@@ -11,7 +11,7 @@ export function createInterviewStore() {
   const recording = writable(false);
   const analysis = writable(null);
   const transcript = writable("");
-  const audioURL = writable("");
+  const videoURL = writable("");
   const currentQuestion = writable("");
   const questionInProgress = writable(false);
   const questions = writable([
@@ -31,10 +31,10 @@ export function createInterviewStore() {
 
   // --- 内部状態 (このモジュール内でのみ使用) ---
   let mediaRecorder = null;
-  let audioChunks = [];
+  let recordedChunks = [];
   let stream = null;
   let recognition = null;
-  let audioBlob = null;
+  let recordedBlob = null;
   let recordingStartTime = 0;
   let videoElement = null;
   let gazeAnalysisInterval = null;
@@ -71,8 +71,8 @@ export function createInterviewStore() {
 
   function handleRecordingStop() {
     const totalRecordingTime = Date.now() - recordingStartTime;
-    audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-    audioURL.set(URL.createObjectURL(audioBlob));
+    recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+    videoURL.set(URL.createObjectURL(recordedBlob));
 
     let currentTranscript = '';
     transcript.subscribe(s => currentTranscript = s)(); // get current value
@@ -164,30 +164,30 @@ export function createInterviewStore() {
 
   function startRecording() {
     if (!stream) {
-      alert("マイクが利用できません。");
+      alert("マイクまたは画面共有が利用できません。");
       return;
     }
-    if (!mediaRecorder) {
-      try {
-        mediaRecorder = new MediaRecorder(stream);
-      } catch (err) {
-        console.error("MediaRecorderの作成に失敗:", err);
-        alert("録音を開始できませんでした。");
-        return;
-      }
+    
+    try {
+      // video/webm;codecs=vp8,opus のようにコーデックを明記するとより安定的
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    } catch (err) {
+      console.error("MediaRecorderの作成に失敗:", err);
+      alert("録画を開始できませんでした。");
+      return;
     }
 
     recording.set(true);
     analysis.set(null);
     transcript.set("");
-    audioBlob = null;
-    audioURL.set("");
-    audioChunks = [];
+    recordedBlob = null;
+    videoURL.set("");
+    recordedChunks = [];
     recordingStartTime = Date.now();
     questionInProgress.set(true);
     startGazeAnalysis();
 
-    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
     mediaRecorder.onstop = handleRecordingStop;
     mediaRecorder.start();
 
@@ -210,9 +210,9 @@ export function createInterviewStore() {
     recording.set(false);
     analysis.set(null);
     transcript.set("");
-    audioBlob = null;
-    audioURL.set("");
-    audioChunks = [];
+    recordedBlob = null;
+    videoURL.set("");
+    recordedChunks = [];
     questionInProgress.set(true);
 
     if (localQuestions.length === 0) {
@@ -260,7 +260,7 @@ export function createInterviewStore() {
     recording,
     analysis,
     transcript,
-    audioURL,
+    videoURL,
     currentQuestion,
     questionInProgress,
     questions,

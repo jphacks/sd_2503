@@ -8,7 +8,7 @@
     recording,
     analysis,
     transcript,
-    audioURL,
+    videoURL, // audioURLから変更
     currentQuestion,
     questionInProgress,
     questions,
@@ -47,18 +47,17 @@
   <div class="mt-8 flex flex-col md:flex-row gap-8">
     <!-- メインコンテンツ (左側) -->
     <div class="flex-grow flex flex-col gap-8">
-      {#if $currentQuestion}
-        <section class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-2xl font-semibold mb-4">質問</h2>
-          <p class="text-lg text-gray-800">{$currentQuestion}</p>
-        </section>
-      {/if}
-
       <!-- Video Feed -->
-      <section class="bg-white rounded-lg shadow-md p-6" hidden={!$analysis}>
-        <h2 class="text-2xl font-semibold mb-4">カメラ映像</h2>
-        <!-- svelte-ignore a11y-media-has-caption -->
-        <video bind:this={videoElement} autoplay muted playsinline class="w-full h-auto rounded-md bg-gray-900" />
+      <section class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-semibold mb-4">{$videoURL && !$recording ? '録画の再生' : 'カメラ映像'}</h2>
+        
+        {#if $videoURL && !$recording}
+          <!-- svelte-ignore a11y-media-has-caption -->
+          <video src={$videoURL} controls class="w-full h-auto rounded-md bg-gray-900" />
+        {:else}
+          <!-- svelte-ignore a11y-media-has-caption -->
+          <video bind:this={videoElement} autoplay muted playsinline class="w-full h-auto rounded-md bg-gray-900" />
+        {/if}
       </section>
 
       <!-- Controls -->
@@ -82,21 +81,26 @@
               disabled={!$currentQuestion && !$questionInProgress}
               aria-pressed={$recording}
             >
-              {$recording ? "録音停止" : "回答を録音"}
+              {$recording ? "録画停止" : "回答を録画"}
             </button>
           </div>
 
           <div class="flex-grow">
-            {#if $audioURL && !$recording}
-              <audio controls src={$audioURL} class="w-full" aria-label="録音の再生"></audio>
-            {/if}
+            <!-- 録画再生エリアはカメラ映像のセクションに統合された -->
           </div>
         </div>
 
         {#if $recording}
-          <p class="mt-4 text-red-500 font-bold animate-pulse">録音中...</p>
+          <p class="mt-4 text-red-500 font-bold animate-pulse">録画中...</p>
         {/if}
       </section>
+
+      {#if $currentQuestion}
+        <section class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-2xl font-semibold mb-4">質問</h2>
+          <p class="text-lg text-gray-800">{$currentQuestion}</p>
+        </section>
+      {/if}
 
       <!-- 文字起こし -->
       {#if $transcript}
