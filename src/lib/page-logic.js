@@ -38,6 +38,7 @@ export function createInterviewStore() {
   let recordingStartTime = 0;
   let localQuestions = [];
   let localCurrentQuestion = '';
+  let finalTranscriptContent = ''; // 確定した文字起こしを保持する変数
 
   // 音声分析関連
   let audioContext = null;
@@ -213,17 +214,18 @@ export function createInterviewStore() {
     recognition.lang = "ja-JP";
 
     recognition.onresult = (event) => {
-      let finalTranscript = "";
       let interimTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-        else interimTranscript += event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscriptContent += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
       }
-      transcript.set((finalTranscript + interimTranscript).trim());
+      transcript.set((finalTranscriptContent + interimTranscript).trim());
     };
 
     recognition.onerror = (event) => console.error("音声認識エラー:", event.error);
-    recognition.onspeechend = () => { stopRecording(); };
   }
 
   function startRecording() {
@@ -246,6 +248,7 @@ export function createInterviewStore() {
     recordedBlob = null;
     videoURL.set("");
     recordedChunks = [];
+    finalTranscriptContent = ''; // 録画開始時に確定文字起こしをリセット
     recordingStartTime = Date.now();
     questionInProgress.set(true);
 
