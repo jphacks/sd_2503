@@ -240,6 +240,13 @@
 
         <section class="bg-white rounded-lg shadow-md p-6">
           <h2 class="text-2xl font-semibold mb-4">フィードバック</h2>
+          {#if $analysis.correctedTranscript}
+            <div class="mb-4 p-4 bg-gray-100 rounded">
+              <h3 class="font-bold mb-2">校正例</h3>
+              <p class="text-lg">{$analysis.correctedTranscript}</p>
+              <p class="text-sm text-gray-600 mt-2">（口癖などを除き、句読点を追加した文章の例です）</p>
+            </div>
+          {/if}
           {#if rateLabel === 'good'}
             <p class="text-lg">素晴らしい速さです！このペースを維持しましょう。</p>
           {:else if rateLabel === 'slowly'}

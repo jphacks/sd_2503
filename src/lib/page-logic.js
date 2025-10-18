@@ -38,6 +38,7 @@ export function createInterviewStore() {
   let recordingStartTime = 0;
   let localQuestions = [];
   let localCurrentQuestion = '';
+  let finalTranscriptContent = ''; // 確定した文字起こしを保持する変数
 
   // 音声分析関連
   let audioContext = null;
@@ -87,7 +88,7 @@ export function createInterviewStore() {
     pitchData.push(pitch > 80 && pitch < 1000 ? pitch : 0);
   }
 
-  function handleRecordingStop() {
+  async function handleRecordingStop() {
     const totalRecordingTime = Date.now() - recordingStartTime;
     recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
     videoURL.set(URL.createObjectURL(recordedBlob));
@@ -104,6 +105,49 @@ export function createInterviewStore() {
     const characterCount = currentTranscript.length;
     const speakingRate = Math.round((characterCount / speakingTimeSec) * 60);
 
+    // --- 校正APIを呼び出す処理 ---
+    const yahooAppId = import.meta.env.VITE_YAHOO_APP_ID;
+    let correctedTranscript = currentTranscript; // フォールバック用に元のテキストを保持
+
+    if (yahooAppId && currentTranscript) {
+      try {
+        const response = await fetch('https://jlp.yahooapis.jp/KouseiService/V2/kousei', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': `Yahoo AppID: ${yahooAppId}`
+          },
+          body: JSON.stringify({
+            id: '1',
+            jsonrpc: '2.0',
+            method: 'jlp.kouseiservice.v2.kousei',
+            params: { q: currentTranscript }
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Yahoo! 校正APIエラー: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (data.result && data.result.suggestions) {
+          let parts = [];
+          let lastIndex = 0;
+          // start_posが小さい順にソートされていることを前提とする
+          for (const suggestion of data.result.suggestions) {
+            parts.push(currentTranscript.substring(lastIndex, suggestion.start_pos));
+            parts.push(suggestion.suggestion);
+            lastIndex = suggestion.start_pos + suggestion.length;
+          }
+          parts.push(currentTranscript.substring(lastIndex));
+          correctedTranscript = parts.join('');
+        }
+      } catch (error) {
+        console.error("Yahoo! 校正APIの呼び出しに失敗しました。フォールバック処理を実行します:", error);
+        correctedTranscript = correctedTranscript.replace(new RegExp(filterWords.join('|'), "g"), "").trim();
+        if (correctedTranscript && !/[。？！]$/.test(correctedTranscript)) correctedTranscript += "。";
+      }
+    }
     // --- 5段階評価の計算ロジック ---
     const scale = (value, min, max) => {
       if (value === undefined || value === null || isNaN(value)) return 1;
@@ -165,6 +209,7 @@ export function createInterviewStore() {
       fillerWords: foundFillerWords,
       speakingRate,
       volumeData,
+      correctedTranscript,
       pitchData,
       radarChartData: {
         labels: ['抑揚', '声量', '適切な間', 'スピードの緩急'],
@@ -213,17 +258,18 @@ export function createInterviewStore() {
     recognition.lang = "ja-JP";
 
     recognition.onresult = (event) => {
-      let finalTranscript = "";
       let interimTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-        else interimTranscript += event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscriptContent += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
       }
-      transcript.set((finalTranscript + interimTranscript).trim());
+      transcript.set((finalTranscriptContent + interimTranscript).trim());
     };
 
     recognition.onerror = (event) => console.error("音声認識エラー:", event.error);
-    recognition.onspeechend = () => { stopRecording(); };
   }
 
   function startRecording() {
@@ -246,6 +292,7 @@ export function createInterviewStore() {
     recordedBlob = null;
     videoURL.set("");
     recordedChunks = [];
+    finalTranscriptContent = ''; // 録画開始時に確定文字起こしをリセット
     recordingStartTime = Date.now();
     questionInProgress.set(true);
 
