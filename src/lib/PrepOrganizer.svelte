@@ -9,6 +9,7 @@
 
   let inputText = '';
   let resultText = '';
+  let grammaticalErrors = [];
 
   let isLoading = false;
   let processError = '';
@@ -19,13 +20,7 @@
     isLoading = true;
     processError = '';
     resultText = '';
-
-    const yahooAppId = import.meta.env.VITE_YAHOO_APP_ID;
-    if (!yahooAppId) {
-      processError = 'Yahoo! JAPANのアプリケーションIDが設定されていません。';
-      isLoading = false;
-      return;
-    }
+    grammaticalErrors = [];
 
     // 1. PREP法で整理
     const organizedText = organizeWithPREP(inputText);
@@ -34,36 +29,45 @@
       return;
     }
 
-    // 2. Yahoo! APIで校正
+    // 2. API経由で校正
     try {
-      const response = await fetch('https://jlp.yahooapis.jp/KouseiService/V2/kousei', {
+      const response = await fetch('/api/proofread', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': `Yahoo AppID: ${yahooAppId}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          id: '1',
-          jsonrpc: '2.0',
-          method: 'jlp.kouseiservice.v2.kousei',
-          params: { q: organizedText }
-        })
+        body: JSON.stringify({ sentence: organizedText })
       });
 
-      if (!response.ok) throw new Error(`APIエラー: ${response.statusText}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `APIエラー: ${response.statusText}`);
+      }
 
       const data = await response.json();
-      if (data.result && data.result.suggestions) {
-        let parts = [];
-        let lastIndex = 0;
-        // start_posが小さい順にソートされていることを前提とする
-        for (const suggestion of data.result.suggestions) {
-          parts.push(organizedText.substring(lastIndex, suggestion.start_pos));
-          parts.push(suggestion.suggestion);
-          lastIndex = suggestion.start_pos + suggestion.length;
+      if (data.result && data.result.suggestions && data.result.suggestions.length > 0) {
+        // オフセットの降順でソートして、後ろから置換していく
+        const sortedSuggestions = data.result.suggestions.sort((a, b) => parseInt(b.offset, 10) - parseInt(a.offset, 10));
+
+        let correctedText = organizedText;
+        for (const suggestion of sortedSuggestions) {
+          const start = parseInt(suggestion.offset, 10);
+          const len = parseInt(suggestion.length, 10);
+          const suggestionText = suggestion.suggestion || '';
+          correctedText = correctedText.substring(0, start) + suggestionText + correctedText.substring(start + len);
         }
-        parts.push(organizedText.substring(lastIndex));
-        resultText = parts.join('');
+        resultText = correctedText;
+
+        // 文法エラーのフィードバックを作成
+        const newGrammaticalErrors = [];
+        for (const suggestion of data.result.suggestions) {
+          if (suggestion.rule === 'ら抜き') {
+            newGrammaticalErrors.push(`「${suggestion.word}」は「ら抜き言葉」です。正しくは「${suggestion.suggestion}」です。`);
+          }
+          // 他のルールに関するフィードバックもここに追加可能
+        }
+        grammaticalErrors = newGrammaticalErrors;
+
       } else {
         // 校正候補がない場合は、PREP整理後のテキストをそのまま表示
         resultText = organizedText;
@@ -105,6 +109,17 @@
     <div class="mt-6 p-4 border-t border-gray-200">
       <h3 class="text-xl font-bold mb-2 text-gray-800">整理・校正後の文章</h3>
       <p class="p-4 bg-white border rounded-md text-gray-700 whitespace-pre-wrap">{resultText}</p>
+    </div>
+  {/if}
+
+  {#if grammaticalErrors && grammaticalErrors.length > 0}
+    <div class="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded">
+      <h3 class="font-bold mb-2">文法に関する指摘</h3>
+      <ul class="list-disc list-inside">
+        {#each grammaticalErrors as error}
+          <li>{error}</li>
+        {/each}
+      </ul>
     </div>
   {/if}
 </div>
