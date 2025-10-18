@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { filterWords } from "$lib/filterwords.js";
 
   let recording = false;
   let analysis = null;
@@ -11,6 +12,23 @@
   let audioBlob = null;
   let audioURL = "";
   let recordingStartTime = 0;
+  let currentQuestion = "";
+  let questionInProgress = false;
+  let newQuestionInput = "";
+  let editingQuestions = false;
+
+  let questions = [
+    "自己紹介をしてください。",
+    "あなたの長所と短所を教えてください。",
+    "学生時代に最も打ち込んだことは何ですか？",
+    "志望動機を教えてください。",
+    "当社の事業内容について、どのような印象をお持ちですか？",
+    "入社後に挑戦したいことは何ですか？",
+    "チームで何かを成し遂げた経験はありますか？",
+    "これまでの人生で最も困難だったことは何ですか？それをどう乗り越えましたか？",
+    "周りの人からどのような人だと言われることが多いですか？",
+    "あなたのキャリアプランを教えてください。",
+  ];
 
   onMount(async () => {
     try {
@@ -61,6 +79,8 @@
     transcript = ""; // 前回の文字起こし結果をクリア
     audioBlob = null;
     audioURL = "";
+    questionInProgress = true;
+
     recordingStartTime = Date.now(); // 録音開始時刻を記録
 
     audioChunks = [];
@@ -79,6 +99,11 @@
       // TODO: audioBlobをサーバーに送信して分析する
       console.log("Audio Blob created:", audioBlob);
 
+      const foundFillerWords = filterWords.filter(word => {
+        const occurrences = (transcript.match(new RegExp(word, 'g')) || []).length;
+        return occurrences >= 3;
+      });
+
       // Simulate analysis after a delay
       setTimeout(() => {
         const speakingTimeSec = totalRecordingTime / 1000;
@@ -88,8 +113,8 @@
           speakingTimeSec > 0 ? Math.round((characterCount / speakingTimeSec) * 60) : 0;
 
         analysis = {
-          fillerWords: (transcript.match(/えーと|あのー/g) || []),
-          speakingRate: speakingRate,
+          fillerWords: foundFillerWords,
+          speakingRate: speakingRate
         };
         recording = false; // 処理完了後に録音状態をfalseにする
       }, 1000); // 停止後すぐに結果を表示するため遅延を短くする
@@ -104,19 +129,63 @@
     if (recognition) {
       recognition.stop();
     }
+    questionInProgress = false;
     console.log("Stop recording...");
+  }
+
+  function nextQuestion() {
+    recording = false;
+    analysis = null;
+    transcript = "";
+    audioBlob = null;
+    audioURL = "";
+    questionInProgress = true;
+
+    let newQuestion;
+    if (questions.length === 1) {
+      newQuestion = questions[0];
+    } else {
+      do {
+        newQuestion = questions[Math.floor(Math.random() * questions.length)];
+      } while (newQuestion === currentQuestion);
+    }
+    currentQuestion = newQuestion;
+  }
+
+  function addQuestion() {
+    if (newQuestionInput.trim() === "") return;
+    questions = [...questions, newQuestionInput.trim()];
+    newQuestionInput = "";
+  }
+
+  function deleteQuestion(index) {
+    questions.splice(index, 1);
+    questions = questions; // for reactivity
   }
 </script>
 
 <main class="flex flex-col gap-8 max-w-3xl mx-auto p-8">
   <h1 class="text-3xl font-bold text-center">面接練習WEBアプリ</h1>
 
+  {#if currentQuestion}
+    <section class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-semibold mb-4">質問</h2>
+        <p class="text-lg text-gray-800">{currentQuestion}</p>
+    </section>
+  {/if}
+
   <section class="bg-white rounded-lg shadow-md p-6">
-    <h2 class="text-2xl font-semibold mb-4">録音と再生</h2>
+    <h2 class="text-2xl font-semibold mb-4">コントロール</h2>
     <div class="flex items-center gap-4">
-      <button on:click={recording ? stopRecording : startRecording} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors flex-shrink-0">
-        {recording ? "録音停止" : "録音開始"}
-      </button>
+      {#if !questionInProgress}
+        <button on:click={nextQuestion} class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors" disabled={questions.length === 0}>
+          次の質問へ
+        </button>
+      {:else}
+        <button on:click={recording ? stopRecording : startRecording} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors flex-shrink-0" disabled={!currentQuestion}>
+          {recording ? "録音停止" : "回答を録音"}
+        </button>
+      {/if}
       {#if audioURL && !recording}
         <audio controls src={audioURL} class="w-full"></audio>
       {/if}
@@ -139,11 +208,15 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-gray-100 p-4 rounded">
           <h3 class="font-bold mb-2">口癖</h3>
-          <ul class="list-disc list-inside">
-            {#each analysis.fillerWords as word}
-              <li>{word}</li>
-            {/each}
-          </ul>
+          {#if analysis.fillerWords.length > 0}
+            <ul class="list-disc list-inside">
+              {#each analysis.fillerWords as word}
+                <li>{word}</li>
+              {/each}
+            </ul>
+          {:else}
+            <p>口癖は見つかりませんでした。</p>
+          {/if}
         </div>
         <div class="bg-gray-100 p-4 rounded">
           <h3 class="font-bold mb-2 flex items-center">
