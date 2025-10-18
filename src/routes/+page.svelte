@@ -1,12 +1,76 @@
 <script>
+  import { onMount } from "svelte";
+
   let recording = false;
   let analysis = null;
+  let mediaRecorder;
+  let audioChunks = [];
+  let stream;
+  let recognition;
+  let transcript = "";
 
-  function toggleRecording() {
-    recording = !recording;
-    if (recording) {
-      // TODO: Start recording
-      console.log("Start recording...");
+  onMount(async () => {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      console.error("マイクへのアクセスが拒否されました:", err);
+      alert("マイクへのアクセスを許可してください。");
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("お使いのブラウザは音声認識に対応していません。");
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.continuous = true; // 継続的に認識
+    recognition.interimResults = true; // 認識途中の結果も取得
+    recognition.lang = "ja-JP"; // 言語を日本語に設定
+
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      // 確定したテキストと認識途中のテキストを結合して表示
+      transcript = finalTranscript + interimTranscript;
+    };
+
+    recognition.onerror = (event) => {
+      console.error("音声認識エラー:", event.error);
+    };
+  });
+
+  function startRecording() {
+    if (!stream) {
+      alert("マイクが利用できません。");
+      return;
+    }
+    recording = true;
+    analysis = null; // 前回の分析結果をクリア
+    transcript = ""; // 前回の文字起こし結果をクリア
+
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.start();
+    console.log("Start recording...");
+
+    mediaRecorder.addEventListener("dataavailable", (event) => {
+      audioChunks.push(event.data);
+    });
+
+    mediaRecorder.addEventListener("stop", () => {
+      const audioBlob = new Blob(audioChunks);
+      // TODO: audioBlobをサーバーに送信して分析する
+      console.log("Audio Blob created:", audioBlob);
+
       // Simulate analysis after a delay
       setTimeout(() => {
         analysis = {
@@ -14,11 +78,20 @@
           speakingRate: 120,
           silenceDuration: 5.2,
         };
-      }, 3000);
-    } else {
-      // TODO: Stop recording and analyze
-      console.log("Stop recording...");
+        recording = false; // 処理完了後に録音状態をfalseにする
+      }, 1000); // 停止後すぐに結果を表示するため遅延を短くする
+    });
+    if (recognition) {
+      recognition.start();
     }
+  }
+
+  function stopRecording() {
+    mediaRecorder.stop();
+    if (recognition) {
+      recognition.stop();
+    }
+    console.log("Stop recording...");
   }
 </script>
 
@@ -27,13 +100,20 @@
 
   <section class="bg-white rounded-lg shadow-md p-6">
     <h2 class="text-2xl font-semibold mb-4">録音</h2>
-    <button on:click={toggleRecording} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
+    <button on:click={recording ? stopRecording : startRecording} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
       {recording ? "録音停止" : "録音開始"}
     </button>
     {#if recording}
       <p class="mt-4 text-red-500 font-bold animate-pulse">録音中...</p>
     {/if}
   </section>
+
+  {#if transcript}
+    <section class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-2xl font-semibold mb-4">文字起こし結果</h2>
+      <p class="text-gray-700 whitespace-pre-wrap">{transcript}</p>
+    </section>
+  {/if}
 
   {#if analysis}
     <section class="bg-white rounded-lg shadow-md p-6">
