@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { filterWords } from "$lib/filterwords.js";
 
   let recording = false;
   let analysis = null;
@@ -74,7 +75,7 @@
       // Simulate analysis after a delay
       setTimeout(() => {
         analysis = {
-          fillerWords: ["えーと", "あのー", "えーと"],
+          fillerWords: filterWords,
           speakingRate: 120,
           silenceDuration: 5.2,
         };
