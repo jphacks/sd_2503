@@ -1,5 +1,5 @@
 <script>
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { createInterviewStore } from "$lib/page-logic.js";
 
   const store = createInterviewStore();
@@ -8,7 +8,7 @@
     recording,
     analysis,
     transcript,
-    videoURL, // audioURLから変更
+    videoURL,
     currentQuestion,
     questionInProgress,
     questions,
@@ -26,6 +26,7 @@
 
   let videoElement;
   let newQuestionInput = "";
+  let radarCanvas;
 
   onMount(() => {
     init(videoElement);
@@ -39,6 +40,91 @@
     addQuestion(newQuestionInput);
     newQuestionInput = "";
   }
+
+  // $: リアクティブ宣言で、analysisが更新されたらグラフを描画
+  $: if ($analysis && $analysis.radarChartData) {
+    (async () => {
+      await tick(); // DOMの更新を待つ
+      drawRadarChart($analysis.radarChartData);
+    })();
+  }
+
+  function drawRadarChart(chartData) {
+    if (!radarCanvas) return;
+    const ctx = radarCanvas.getContext('2d');
+    const width = radarCanvas.width;
+    const height = radarCanvas.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) / 2 * 0.7;
+    const levels = 5;
+    const sides = chartData.labels.length;
+
+    // 背景をクリア
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, width, height);
+
+    // グリッドを描画
+    ctx.strokeStyle = '#e5e7eb'; // gray-200
+    ctx.lineWidth = 1;
+    for (let level = 1; level <= levels; level++) {
+      ctx.beginPath();
+      for (let i = 0; i < sides; i++) {
+        const angle = (i / sides) * 2 * Math.PI - Math.PI / 2;
+        const r = radius * (level / levels);
+        const x = centerX + r * Math.cos(angle);
+        const y = centerY + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    // 軸を描画
+    ctx.strokeStyle = '#d1d5db'; // gray-300
+    for (let i = 0; i < sides; i++) {
+      const angle = (i / sides) * 2 * Math.PI - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+      ctx.stroke();
+    }
+
+    // ラベルを描画
+    ctx.fillStyle = '#374151'; // gray-700
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    chartData.labels.forEach((label, i) => {
+      const angle = (i / sides) * 2 * Math.PI - Math.PI / 2;
+      const r = radius * 1.15;
+      const x = centerX + r * Math.cos(angle);
+      const y = centerY + r * Math.sin(angle);
+      ctx.fillText(label, x, y);
+    });
+
+    // データセットを描画
+    chartData.datasets.forEach(dataset => {
+      ctx.beginPath();
+      dataset.data.forEach((value, i) => {
+        const angle = (i / sides) * 2 * Math.PI - Math.PI / 2;
+        const r = radius * (value / levels);
+        const x = centerX + r * Math.cos(angle);
+        const y = centerY + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      
+      ctx.fillStyle = dataset.backgroundColor || 'rgba(59, 130, 246, 0.2)';
+      ctx.fill();
+      ctx.strokeStyle = dataset.borderColor || 'rgba(59, 130, 246, 1)';
+      ctx.lineWidth = dataset.borderWidth || 2;
+      ctx.stroke();
+    });
+  }
+
 </script>
 
 <main class="max-w-6xl mx-auto p-8">
@@ -129,7 +215,6 @@
               {/if}
             </div>
 
-
             <div class="bg-gray-100 p-4 rounded">
               <h3 class="font-bold mb-2 flex items-center">
                 <span>話す速さ</span>
@@ -144,6 +229,12 @@
               <p class="text-lg">{$analysis.speakingRate} 文字/分</p>
             </div>
           </div>
+        </section>
+
+        <!-- 声の分析グラフ -->
+        <section class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-2xl font-semibold mb-4">総合評価</h2>
+          <canvas bind:this={radarCanvas} width="400" height="400" class="w-full max-w-md mx-auto h-auto"></canvas>
         </section>
 
         <section class="bg-white rounded-lg shadow-md p-6">
