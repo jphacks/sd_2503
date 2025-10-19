@@ -1,1 +1,1 @@
-// Reexport your entry components here
+// ここにエントリーコンポーネントを再エクスポートします

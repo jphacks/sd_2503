@@ -148,7 +148,7 @@
         {/if}
       </section>
 
-      <!-- Controls -->
+      <!-- 操作パネル -->
       <section class="bg-white rounded-lg shadow-md p-6">
         <h2 class="text-2xl font-semibold mb-4">コントロール</h2>
 
