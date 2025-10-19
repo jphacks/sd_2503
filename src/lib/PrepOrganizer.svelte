@@ -60,11 +60,25 @@
 
         // 文法エラーのフィードバックを作成
         const newGrammaticalErrors = [];
-        for (const suggestion of data.result.suggestions) {
-          if (suggestion.rule === 'ら抜き') {
-            newGrammaticalErrors.push(`「${suggestion.word}」は「ら抜き言葉」です。正しくは「${suggestion.suggestion}」です。`);
+        // 各ルールに対応する解説を生成するヘルパー関数
+        const getFeedbackMessage = (s) => {
+          switch (s.rule) {
+            case 'ら抜き':
+              return `「${s.word}」は「ら抜き言葉」です。正しくは「${s.suggestion}」と表現します。`;
+            case 'い抜き':
+              return `「${s.word}」は「い抜き言葉」です。正しくは「${s.suggestion}」と表現します。`;
+            case 'さ入れ':
+              return `「${s.word}」は不要な「さ」が入る「さ入れ言葉」です。正しくは「${s.suggestion}」です。`;
+            case '冗長な表現':
+              return `「${s.word}」は冗長な表現の可能性があります。「${s.suggestion}」のような、より簡潔な表現を検討しましょう。`;
+            default:
+              return `「${s.word}」は「${s.suggestion}」と修正すると、より自然な表現になります。(ルール: ${s.rule})`;
           }
-          // 他のルールに関するフィードバックもここに追加可能
+        };
+
+        for (const suggestion of data.result.suggestions) {
+          const message = getFeedbackMessage(suggestion);
+          newGrammaticalErrors.push(message);
         }
         grammaticalErrors = newGrammaticalErrors;
 

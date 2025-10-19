@@ -325,11 +325,16 @@ export function createInterviewStore() {
   function stopRecording() {
     if (audioAnalysisInterval) clearInterval(audioAnalysisInterval);
 
+    // 録画状態を即座に false に更新し、UIの連打を防止する
     let isRec = false;
     recording.subscribe(v => isRec = v)();
     if (mediaRecorder && isRec) {
       try { mediaRecorder.stop(); } catch (e) { console.warn("mediaRecorder.stop() error:", e); }
     }
+    if (!isRec) return; // すでに停止処理が始まっている場合は何もしない
+    recording.set(false);
+
+    if (mediaRecorder) try { mediaRecorder.stop(); } catch (e) { console.warn("mediaRecorder.stop() error:", e); }
     stopRecognitionIfNeeded();
   }
 
