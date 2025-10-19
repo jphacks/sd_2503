@@ -56,4 +56,4 @@
 ### 独自技術
 #### ハッカソンで開発した独自機能・技術
 *   **ブラウザ完結型の音声分析エンジン**: Web Audio APIから得られる音声データをもとに、話している時間、文字数、口癖の出現頻度、沈黙の回数などを計測・分析するロジックをJavaScriptで開発しました。これにより、サーバー通信なしでの客観的な話し方の評価を実現しています。
-    *   関連ファイル: `src/lib/page-logic.js`
+    *   関連ファイル: [`src/lib/page-logic.js`](https://github.com/jphacks/sd_2503/blob/main/src/lib/page-logic.js#L174-L229)
