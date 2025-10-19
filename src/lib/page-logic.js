@@ -39,6 +39,7 @@ export function createInterviewStore() {
   let localQuestions = [];
   let localCurrentQuestion = '';
   let finalTranscriptContent = ''; // 確定した文字起こしを保持する変数
+  let questionInitialized = false;
 
   // 音声分析関連
   let audioContext = null;
@@ -359,6 +360,13 @@ export function createInterviewStore() {
       questionInProgress.set(false);
       return;
     }
+
+    if (!questionInitialized) {
+      currentQuestion.set(localQuestions[0]);
+      questionInitialized = true;
+      return;
+    }
+
     if (localQuestions.length === 1) {
       currentQuestion.set(localQuestions[0]);
       return;
