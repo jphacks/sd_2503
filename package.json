@@ -37,6 +37,7 @@
 		"@eslint/compat": "^1.4.0",
 		"@eslint/js": "^9.36.0",
 		"@playwright/test": "^1.55.1",
+		"@sveltejs/adapter-node": "^5.4.0",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.43.2",
 		"@sveltejs/package": "^2.5.4",

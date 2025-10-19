@@ -1,0 +1,21 @@
+# Git files
+.git
+.gitignore
+
+# Dependencies
+node_modules
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# Environment variables
+.env*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test reports
+coverage
