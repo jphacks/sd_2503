@@ -116,7 +116,10 @@ export function createInterviewStore() {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ sentence: currentTranscript })
+          body: JSON.stringify({
+            sentence: currentTranscript,
+            rules: ['ra-nuki', 'i-nuki', 'sa-ire', 'sa-nuki', 'jodoushi']
+          })
         });
 
         if (!response.ok) {
@@ -146,10 +149,8 @@ export function createInterviewStore() {
 
           // 文法エラーのフィードバックを作成
           for (const suggestion of data.result.suggestions) {
-            if (suggestion.rule === 'ら抜き') {
-              grammaticalErrors.push(`「${suggestion.word}」は「ら抜き言葉」です。正しくは「${suggestion.suggestion}」です。`);
-            }
-            // 他のルールに関するフィードバックもここに追加可能
+            const message = getFeedbackMessage(suggestion);
+            grammaticalErrors.push(message);
           }
         }
       } catch (error) {
@@ -216,6 +217,8 @@ export function createInterviewStore() {
       speedVariationScore = scale(stdDevVolume, 0.01, 0.05); // 標準偏差 0.01 (単調) ~ 0.05 (緩急あり)
     }
 
+    const radarScores = [intonationScore, volumeScore, pauseScore, speedVariationScore];
+
     analysis.set({
       fillerWords: foundFillerWords,
       speakingRate,
@@ -227,7 +230,7 @@ export function createInterviewStore() {
         labels: ['抑揚', '声量', '適切な間', 'スピードの緩急'],
         datasets: [{
           label: 'あなたのスキル',
-          data: [intonationScore, volumeScore, pauseScore, speedVariationScore],
+          data: radarScores,
           backgroundColor: 'rgba(59, 130, 246, 0.2)',
           borderColor: 'rgba(59, 130, 246, 1)',
           borderWidth: 2,
@@ -385,9 +388,11 @@ export function createInterviewStore() {
   }
 
   function speakingRateLabel(rate) {
-    if (rate >= GOOD_MIN && rate <= GOOD_MAX) return "good";
+    if (rate < 240) return "very_slowly";
     if (rate < GOOD_MIN) return "slowly";
-    return "fast";
+    if (rate <= GOOD_MAX) return "good";
+    if (rate <= 360) return "fast";
+    return "very_fast";
   }
 
   /**
@@ -395,6 +400,88 @@ export function createInterviewStore() {
    * @param {string} text 整理対象のテキスト
    * @returns {string} 整理後のテキスト
    */
+  function getSpeakingRateFeedback(rate) {
+    const label = speakingRateLabel(rate);
+    const feedbacks = {
+        good: [
+            "素晴らしい速さです！聞き取りやすく、自信に満ちた印象を与えます。このペースを維持しましょう。",
+            "ちょうど良いスピーチペースです。内容は聞き手にしっかりと伝わっているでしょう。",
+            "理想的な話速です。落ち着いていて、かつ退屈させない、絶妙なバランスが取れています。"
+        ],
+        very_slowly: [
+            "かなりゆっくりな話し方です。聞き手によっては、少し冗長に感じられるかもしれません。もう少しテンポを上げることを意識してみましょう。",
+            "非常に丁寧な印象ですが、話のテンポが遅いようです。もう少しスピードを上げて、話に躍動感を持たせるとさらに良くなります。"
+        ],
+        slowly: [
+            "もう少しハキハキと、少しだけ速く話すことを意識すると、より自信があるように聞こえます。",
+            "少しゆっくりすぎるかもしれません。話にリズムを持たせ、重要な部分を少し速めに話すなど工夫してみましょう。",
+            "丁寧な印象ですが、やや単調に聞こえる可能性があります。スピードに緩急をつけることを意識してみてください。"
+        ],
+        very_fast: [
+            "非常に早口です。聞き手が内容を理解するのが難しいかもしれません。意識的に「間」を置くことを心がけましょう。",
+            "熱意は素晴らしいですが、聞き手が追いつけないほどのスピードです。一度立ち止まって、ゆっくり話す練習をしてみましょう。"
+        ],
+        fast: [
+            "少し早口のようです。相手が聞き取りやすいように、もう少しゆっくり話すことを意識しましょう。",
+            "熱意は伝わりますが、少し早口で聞き取りにくいかもしれません。意識的に間を置くと、より内容が伝わりやすくなります。",
+            "情報量が多い素晴らしい内容ですが、少しスピードを落とすことで、聞き手はより深く理解できます。"
+        ]
+    };
+    const options = feedbacks[label];
+    return options[Math.floor(Math.random() * options.length)];
+  }
+
+  function getRadarChartFeedback(radarChartData) {
+    const feedbacks = [];
+    const { labels, datasets } = radarChartData;
+    const scores = datasets[0].data;
+
+    const advice = {
+      '抑揚': {
+        1: '声が一本調子で、聞き手が退屈してしまう可能性があります。物語を読むように、感情を込めて話す練習をしてみましょう。',
+        2: '声の高低差をもう少し意識してみましょう。重要なキーワードを少し高めの声で発音するだけでも、表現が豊かになります。'
+      },
+      '声量': {
+        1: '声が小さく、聞き取りにくい部分があったようです。自信がない印象を与えかねません。背筋を伸ばし、お腹から声を出すことを意識してください。',
+        2: 'もう少し大きな声で、自信を持って話してみましょう。相手にしっかりと声を届けるイメージを持つと効果的です。'
+      },
+      '適切な間': {
+        1: '話が途切れず、聞き手が情報を整理する時間がなかったようです。句読点を意識し、1秒程度の「間」を意識的に作る練習をしましょう。',
+        2: '話の区切りで、意識的に短い間（ポーズ）を取るように心がけてみてください。聞き手が内容を理解する助けになります。'
+      },
+      'スピードの緩急': {
+        1: '終始同じスピードで話しており、単調な印象を与えてしまうかもしれません。一番伝えたいことは「ゆっくり、はっきりと」、補足情報は「少し速めに」といった変化を試してみましょう。',
+        2: '一本調子にならないよう、話すスピードに変化をつけてみましょう。重要な部分を少しゆっくり話すだけでも、聞き手の注意を引くことができます。'
+      }
+    };
+
+    labels.forEach((label, i) => {
+      const score = scores[i];
+      if (score <= 2 && advice[label] && advice[label][score]) {
+        feedbacks.push(advice[label][score]);
+      }
+    });
+
+    return feedbacks;
+  }
+
+  function getFeedbackMessage(s) {
+    switch (s.rule) {
+      case 'ra-nuki':
+        return `「${s.word}」は「ら抜き言葉」です。正しくは「${s.suggestion}」と表現します。`;
+      case 'i-nuki':
+        return `「${s.word}」は「い抜き言葉」です。正しくは「${s.suggestion}」と表現します。`;
+      case 'sa-ire':
+        return `「${s.word}」は不要な「さ」が入る「さ入れ言葉」です。正しくは「${s.suggestion}」です。`;
+      case 'sa-nuki':
+        return `「${s.word}」は「さ」が抜けています。「さ抜き言葉」の可能性があります。正しくは「${s.suggestion}」です。`;
+      case 'jodoushi':
+        return `「${s.word}」は冗長な表現の可能性があります。「${s.suggestion}」のような、より簡潔な表現を検討しましょう。`;
+      default:
+        return `「${s.word}」は「${s.suggestion}」と修正すると、より自然な表現になります。(ルール: ${s.rule})`;
+    }
+  }
+
   function organizeWithPREP(text) {
     if (!text || text.trim() === "") {
       return "";
@@ -465,6 +552,9 @@ export function createInterviewStore() {
     deleteQuestion,
     destroy,
     speakingRateLabel,
-    organizeWithPREP
+    organizeWithPREP,
+    getSpeakingRateFeedback,
+    getRadarChartFeedback,
+    getFeedbackMessage
   };
 }
