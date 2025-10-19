@@ -95,7 +95,7 @@
 </script>
 
 <div class="prep-organizer my-8 p-6 border rounded-lg shadow-md bg-gray-50">
-  <h2 class="text-2xl font-bold mb-4 text-gray-800">PREP法 構成チェッカー</h2>
+  <h2 class="text-2xl font-bold mb-4 text-gray-800">PREP法 構成(校正)チェッカー</h2>
   <p class="mb-4 text-gray-600">
     自己PRや志望動機などを下のテキストエリアに入力し、「整理と校正」ボタンを押してください。<br />
     PREP法（結論→理由→具体例→再結論）の構成に並べ替え、文章の校正を行います。
