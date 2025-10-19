@@ -183,7 +183,7 @@ export function createInterviewStore() {
 
     // 3. 適切な間 (Appropriate Pauses)
     const silenceThreshold = 0.02;
-    const minPauseDuration = 5; // 500ms (ANALYSIS_INTERVAL * 5)
+    const minPauseDuration = 5; // 500ミリ秒 (ANALYSIS_INTERVAL * 5)
     let pauseCount = 0;
     let currentSilenceLength = 0;
     for (const volume of volumeData) {
