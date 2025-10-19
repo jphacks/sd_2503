@@ -202,95 +202,102 @@
 
       <!-- 分析結果 -->
       {#if $analysis}
-        {@const rateLabel = speakingRateLabel($analysis.speakingRate)}
-        {@const rateFeedback = getSpeakingRateFeedback($analysis.speakingRate)}
-        {@const radarFeedback = getRadarChartFeedback($analysis.radarChartData)}
-        <section class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-2xl font-semibold mb-4">分析結果</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-gray-100 p-4 rounded">
-              <h3 class="font-bold mb-2">口癖</h3>
-              {#if $analysis.fillerWords.length > 0}
-                <ul class="list-disc list-inside">
-                  {#each $analysis.fillerWords as word}
-                    <li>{word}</li>
-                  {/each}
-                </ul>
-              {:else}
-                <p>口癖は見つかりませんでした。</p>
-              {/if}
-            </div>
-
-            <div class="bg-gray-100 p-4 rounded">
-              <h3 class="font-bold mb-2 flex items-center">
-                <span>話す速さ</span>
-                {#if rateLabel === 'good'}
-                  <span class="ml-2 text-sm font-bold text-white bg-green-500 px-2 py-1 rounded-full">適切</span>
-                {:else if rateLabel === 'very_slowly'}
-                  <span class="ml-2 text-sm font-bold text-white bg-blue-600 px-2 py-1 rounded-full">かなりゆっくり</span>
-                {:else if rateLabel === 'slowly'}
-                  <span class="ml-2 text-sm font-bold text-white bg-yellow-500 px-2 py-1 rounded-full">ゆっくり</span>
-                {:else if rateLabel === 'very_fast'}
-                  <span class="ml-2 text-sm font-bold text-white bg-purple-600 px-2 py-1 rounded-full">かなり速い</span>
+        {#if $analysis.error}
+          <section class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold mb-4 text-red-500">分析エラー</h2>
+            <p class="text-gray-700">{$analysis.error}</p>
+          </section>
+        {:else}
+          {@const rateLabel = speakingRateLabel($analysis.speakingRate)}
+          {@const rateFeedback = getSpeakingRateFeedback($analysis.speakingRate)}
+          {@const radarFeedback = getRadarChartFeedback($analysis.radarChartData)}
+          <section class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold mb-4">分析結果</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-gray-100 p-4 rounded">
+                <h3 class="font-bold mb-2">口癖</h3>
+                {#if $analysis.fillerWords.length > 0}
+                  <ul class="list-disc list-inside">
+                    {#each $analysis.fillerWords as word}
+                      <li>{word}</li>
+                    {/each}
+                  </ul>
                 {:else}
-                  <span class="ml-2 text-sm font-bold text-white bg-red-500 px-2 py-1 rounded-full">速い</span>
+                  <p>口癖は見つかりませんでした。</p>
                 {/if}
-              </h3>
-              <p class="text-lg">{$analysis.speakingRate} 文字/分</p>
-            </div>
-          </div>
-        </section>
+              </div>
 
-        <!-- 声の分析グラフ -->
-        <section class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-2xl font-semibold mb-4">総合評価</h2>
-          <canvas bind:this={radarCanvas} width="400" height="400" class="w-full max-w-md mx-auto h-auto"></canvas>
-          <div class="mt-6 text-sm text-gray-600">
-            <h3 class="font-bold text-base text-gray-700 mb-2">評価基準について</h3>
-            <ul class="list-disc list-inside space-y-1">
-              <li><strong>抑揚:</strong> 声の高さの幅を評価します。様々な高さの声を使うと高評価になります。</li>
-              <li><strong>声量:</strong> 話している間の平均的な声の大きさを評価します。小さすぎず、大きすぎない声が理想です。</li>
-              <li><strong>適切な間:</strong> 1分間あたりの間の回数を評価します。適度な間を取ることで、聞き手が内容を理解しやすくなります。</li>
-              <li><strong>スピードの緩急:</strong> 話すスピードの変化を評価します。一本調子ではなく、話の内容に合わせてスピードに変化があると高評価になります。</li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-2xl font-semibold mb-4">フィードバック</h2>
-          {#if $analysis.correctedTranscript}
-            <div class="mb-4 p-4 bg-gray-100 rounded">
-              <h3 class="font-bold mb-2">校正例</h3>
-              <p class="text-lg">{$analysis.correctedTranscript}</p>
-              <p class="text-sm text-gray-600 mt-2">（口癖などを除き、句読点を追加した文章の例です）</p>
+              <div class="bg-gray-100 p-4 rounded">
+                <h3 class="font-bold mb-2 flex items-center">
+                  <span>話す速さ</span>
+                  {#if rateLabel === 'good'}
+                    <span class="ml-2 text-sm font-bold text-white bg-green-500 px-2 py-1 rounded-full">適切</span>
+                  {:else if rateLabel === 'very_slowly'}
+                    <span class="ml-2 text-sm font-bold text-white bg-blue-600 px-2 py-1 rounded-full">かなりゆっくり</span>
+                  {:else if rateLabel === 'slowly'}
+                    <span class="ml-2 text-sm font-bold text-white bg-yellow-500 px-2 py-1 rounded-full">ゆっくり</span>
+                  {:else if rateLabel === 'very_fast'}
+                    <span class="ml-2 text-sm font-bold text-white bg-purple-600 px-2 py-1 rounded-full">かなり速い</span>
+                  {:else}
+                    <span class="ml-2 text-sm font-bold text-white bg-red-500 px-2 py-1 rounded-full">速い</span>
+                  {/if}
+                </h3>
+                <p class="text-lg">{$analysis.speakingRate} 文字/分</p>
+              </div>
             </div>
-          {/if}
-          
-          {#if $analysis.grammaticalErrors && $analysis.grammaticalErrors.length > 0}
-            <div class="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded">
-              <h3 class="font-bold mb-2">文法に関する指摘</h3>
-              <ul class="list-disc list-inside">
-                {#each $analysis.grammaticalErrors as error}
-                  <li>{error}</li>
-                {/each}
+          </section>
+
+          <!-- 声の分析グラフ -->
+          <section class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold mb-4">総合評価</h2>
+            <canvas bind:this={radarCanvas} width="400" height="400" class="w-full max-w-md mx-auto h-auto"></canvas>
+            <div class="mt-6 text-sm text-gray-600">
+              <h3 class="font-bold text-base text-gray-700 mb-2">評価基準について</h3>
+              <ul class="list-disc list-inside space-y-1">
+                <li><strong>抑揚:</strong> 声の高さの幅を評価します。様々な高さの声を使うと高評価になります。</li>
+                <li><strong>声量:</strong> 話している間の平均的な声の大きさを評価します。小さすぎず、大きすぎない声が理想です。</li>
+                <li><strong>適切な間:</strong> 1分間あたりの間の回数を評価します。適度な間を取ることで、聞き手が内容を理解しやすくなります。</li>
+                <li><strong>スピードの緩急:</strong> 話すスピードの変化を評価します。一本調子ではなく、話の内容に合わせてスピードに変化があると高評価になります。</li>
               </ul>
             </div>
-          {/if}
+          </section>
 
-          {#if rateFeedback}
-            <div class="mb-4 p-4 bg-blue-100 border-l-4 border-blue-500 text-blue-700 rounded">
-              <h3 class="font-bold mb-2">話す速さについて</h3>
-              <p>{rateFeedback}</p>
-            </div>
-          {/if}
+          <section class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold mb-4">フィードバック</h2>
+            {#if $analysis.correctedTranscript}
+              <div class="mb-4 p-4 bg-gray-100 rounded">
+                <h3 class="font-bold mb-2">校正例</h3>
+                <p class="text-lg">{$analysis.correctedTranscript}</p>
+                <p class="text-sm text-gray-600 mt-2">（口癖などを除き、句読点を追加した文章の例です）</p>
+              </div>
+            {/if}
+            
+            {#if $analysis.grammaticalErrors && $analysis.grammaticalErrors.length > 0}
+              <div class="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded">
+                <h3 class="font-bold mb-2">文法に関する指摘</h3>
+                <ul class="list-disc list-inside">
+                  {#each $analysis.grammaticalErrors as error}
+                    <li>{error}</li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
 
-          {#if radarFeedback && radarFeedback.length > 0}
-            <div class="p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded">
-              <h3 class="font-bold mb-2">表現力を高めるためのヒント</h3>
-              <ul class="list-disc list-inside space-y-1">{#each radarFeedback as tip}<li>{tip}</li>{/each}</ul>
-            </div>
-          {/if}
-        </section>
+            {#if rateFeedback}
+              <div class="mb-4 p-4 bg-blue-100 border-l-4 border-blue-500 text-blue-700 rounded">
+                <h3 class="font-bold mb-2">話す速さについて</h3>
+                <p>{rateFeedback}</p>
+              </div>
+            {/if}
+
+            {#if radarFeedback && radarFeedback.length > 0}
+              <div class="p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded">
+                <h3 class="font-bold mb-2">表現力を高めるためのヒント</h3>
+                <ul class="list-disc list-inside space-y-1">{#each radarFeedback as tip}<li>{tip}</li>{/each}</ul>
+              </div>
+            {/if}
+          </section>
+        {/if}
       {/if}
     </div>
 
