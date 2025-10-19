@@ -58,7 +58,7 @@
     const height = radarCanvas.height;
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.min(width, height) / 2 * 0.7;
+    const radius = Math.min(width, height) / 2 * 0.65;
     const levels = 5;
     const sides = chartData.labels.length;
 
@@ -237,6 +237,15 @@
         <section class="bg-white rounded-lg shadow-md p-6">
           <h2 class="text-2xl font-semibold mb-4">総合評価</h2>
           <canvas bind:this={radarCanvas} width="400" height="400" class="w-full max-w-md mx-auto h-auto"></canvas>
+          <div class="mt-6 text-sm text-gray-600">
+            <h3 class="font-bold text-base text-gray-700 mb-2">評価基準について</h3>
+            <ul class="list-disc list-inside space-y-1">
+              <li><strong>抑揚:</strong> 声の高さの幅を評価します。様々な高さの声を使うと高評価になります。</li>
+              <li><strong>声量:</strong> 話している間の平均的な声の大きさを評価します。小さすぎず、大きすぎない声が理想です。</li>
+              <li><strong>適切な間:</strong> 1分間あたりの間の回数を評価します。適度な間を取ることで、聞き手が内容を理解しやすくなります。</li>
+              <li><strong>スピードの緩急:</strong> 話すスピードの変化を評価します。一本調子ではなく、話の内容に合わせてスピードに変化があると高評価になります。</li>
+            </ul>
+          </div>
         </section>
 
         <section class="bg-white rounded-lg shadow-md p-6">
