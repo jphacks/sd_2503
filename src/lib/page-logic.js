@@ -96,6 +96,16 @@ export function createInterviewStore() {
     let currentTranscript = '';
     transcript.subscribe(s => currentTranscript = s)();
 
+    // 音声が検出されなかった場合のエラー処理
+    if (currentTranscript.trim().length === 0) {
+      analysis.set({
+        error: "音声が検出されませんでした。マイクがミュートになっていないか、マイクに正しく音声が入力されているか確認してください。"
+      });
+      recording.set(false);
+      questionInProgress.set(false);
+      return;
+    }
+
     const foundFillerWords = filterWords
       .map(word => ({ word, occurrences: (currentTranscript.match(new RegExp(word, "g")) || []).length }))
       .filter(x => x.occurrences > 0)
