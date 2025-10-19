@@ -130,7 +130,7 @@
 </script>
 
 <main class="max-w-6xl mx-auto p-8">
-  <h1 class="text-3xl font-bold text-center">Re:view</h1>
+  <img src="/Review.png" alt="Re:view" class="mx-auto h-12" />
 
   <div class="mt-8 flex flex-col md:flex-row gap-8">
     <!-- メインコンテンツ (左側) -->
