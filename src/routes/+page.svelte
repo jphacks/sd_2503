@@ -2,6 +2,7 @@
   import { onMount, onDestroy, tick } from "svelte";
   import { createInterviewStore } from "$lib/page-logic.js";
   import PrepOrganizer from "../lib/PrepOrganizer.svelte";
+  import { writable } from 'svelte/store';
 
   const store = createInterviewStore();
   const {
@@ -28,6 +29,14 @@
   let videoElement;
   let newQuestionInput = "";
   let radarCanvas;
+  let isEditingQuestions = false;
+  // 面接のコツ表示用のローカルstore
+  const knacks = writable(false);
+  let isKnacks = false;
+  knacks.subscribe(v => isKnacks = v);
+
+  // subscribe to editingQuestions store to avoid using $editingQuestions shorthand
+  editingQuestions.subscribe(v => isEditingQuestions = v);
 
   onMount(() => {
     init(videoElement);
@@ -325,6 +334,45 @@
                   </div>
                 </li>
               {/each}
+            </ul>
+          </div>
+        {/if}
+      </section>
+      
+      <!-- 面接のコツセクション -->
+      <section class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-semibold mb-4">面接のコツ</h2>
+
+        <div class="flex items-center gap-4">
+          <button
+            on:click={() => knacks.update(v => !v)}
+            class="text-sm text-blue-500 hover:underline"
+            aria-expanded={isKnacks}
+          >
+            {isKnacks ? 'コツを閉じる' : 'コツを見る'}
+          </button>
+
+        </div>
+
+        {#if isKnacks}
+          <div class="mt-4 text-gray-700 text-sm space-y-3">
+            <p class="font-semibold">長所･短所を話すときの小さなコツ</p>
+            <ul class="list-disc list-inside">
+              <li>伝えるポイントは1つに絞る</li>
+              <li>「結論→エピソード→どう活かすか」の順に話る</li>
+              <li>自分だけのエピソードに落とし込む</li>
+            </ul>
+            <p class="font-semibold mt-4">話し方のポイント</p>
+            <ul class="list-disc list-inside">
+              <li>繰り返し練習する</li>
+              <li>結論から話し、要点をまとめて話す</li>
+              <li>話すことを丸暗記しない</li>
+            </ul>
+            <p class="font-semibold mt-4">緊張したときは</p>
+            <ul class="list-disc list-inside">
+              <li>深呼吸をしてリラックスする。</li>
+              <li>ゆっくり話すことを意識する。</li>
+              <li>完璧を目指さず、自然体で臨む。</li>
             </ul>
           </div>
         {/if}
