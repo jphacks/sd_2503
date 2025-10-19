@@ -12,7 +12,7 @@ export async function handle({ event, resolve }) {
 	if (!building) {
 		response.headers.set(
 			'Content-Security-Policy',
-			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;"
+			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; media-src 'self' blob:;"
 		);
 	}
 
